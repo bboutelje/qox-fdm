@@ -1,7 +1,7 @@
 pub mod boundary_conditions;
 pub mod fdm_process;
 pub mod grids;
-pub mod intitial_conditions;
+pub mod initial_conditions;
 pub mod obstacle;
 pub mod solver;
 

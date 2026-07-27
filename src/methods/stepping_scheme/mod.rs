@@ -1,7 +1,7 @@
 pub mod linear;
 
 use crate::methods::{
-    finite_difference::{grids::grid_type::GridType, intitial_conditions::InitialConditions},
+    finite_difference::{grids::grid_type::GridType, initial_conditions::InitialConditions},
     time_stepping::{GlmWorkspace, input_vectors::jet_vector::JetVector},
 };
 

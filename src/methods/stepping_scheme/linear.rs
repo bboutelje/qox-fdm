@@ -1,7 +1,7 @@
 use crate::methods::finite_difference::FdmProcess;
 use crate::methods::finite_difference::boundary_conditions::BoundaryCondition;
 use crate::methods::finite_difference::grids::Grid1d;
-use crate::methods::finite_difference::intitial_conditions::InitialConditions;
+use crate::methods::finite_difference::initial_conditions::InitialConditions;
 use crate::methods::linear_operators::LinearOperator;
 use crate::methods::stepping_scheme::SteppingScheme;
 use crate::methods::time_stepping::GlmWorkspace;
