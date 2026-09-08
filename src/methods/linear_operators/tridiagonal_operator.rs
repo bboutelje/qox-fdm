@@ -58,7 +58,6 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
     fn setup_coeff(&self, coeff: T) {
         let mut cache = self.cache.borrow_mut();
 
-        // Skip if already computed for this coeff
         if let Some(ref c) = *cache {
             if (c.coeff - coeff).abs() < T::from_f64(1e-12) {
                 return;
@@ -69,10 +68,6 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
         let mut a_prime = vec![T::zero(); n];
         let mut c_prime = vec![T::zero(); n];
         let mut m_inv = vec![T::zero(); n];
-
-        // Solve (I - coeff * L)x = b
-        // Diagonal: d_i' = 1 - coeff * diag[i]
-        // Off-diagonals: a_i = -coeff * lower[i], c_i = -coeff * upper[i]
 
         a_prime[0] = T::zero();
 
@@ -103,10 +98,8 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
     }
 
     fn solve_inverse_into(&self, coeff: T, b: &[T], x: &mut [T], z_buffer: &mut [T]) {
-        // 1. Ensure the cache is synchronized with the provided coeff
         self.setup_coeff(coeff);
 
-        // 2. Proceed with the solve using the (now guaranteed) cached values
         let cache_ref = self.cache.borrow();
         let c = cache_ref
             .as_ref()
@@ -127,38 +120,23 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
     fn set_boundary_row(&mut self, row_idx: usize, weights: &[T]) {
         let n = self.size();
 
-        // 1. Clear the cache since matrix coefficients have altered
         *self.cache.get_mut() = None;
 
         if row_idx == 0 {
-            // Lower boundary: Only touches the first row.
-            // weights[0] maps to diag[0], weights[1] maps to upper[0]
             self.diag[0] = weights[0];
             if weights.len() > 1 {
                 self.upper[0] = weights[1];
             }
-            // lower[0] is structurally outside the matrix boundary, but keep it clean
             self.lower[0] = T::zero();
-
-            // println!("Diag: {:?}", self.diag[0]);
-            // println!("Upper: {:?}", self.upper[0]);
         } else if row_idx == n - 1 {
-            // Upper boundary: Only touches the final row.
-            // For a 2-point relation layout passed from your BC:
-            // weights[0] is the weight on the inner neighbor (lower[n-1])
-            // weights[1] is the weight on the boundary itself (diag[n-1])
             if weights.len() > 1 {
                 self.lower[row_idx] = weights[0];
                 self.diag[row_idx] = weights[1];
             } else {
                 self.diag[row_idx] = weights[0];
             }
-            // upper[n-1] is structurally outside the matrix boundary, keep it clean
             self.upper[row_idx] = T::zero();
-            // println!("Diag: {:?}", self.diag[row_idx]);
-            // println!("Lower: {:?}", self.lower[row_idx]);
         } else {
-            // Optional fallback: handling generic interior rows if ever needed
             if weights.len() >= 3 {
                 self.lower[row_idx] = weights[0];
                 self.diag[row_idx] = weights[1];
