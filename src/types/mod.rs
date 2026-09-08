@@ -32,6 +32,7 @@ pub trait Real:
     fn cosh(self) -> Self;
     fn asinh(self) -> Self;
     fn cos(self) -> Self;
+    fn acos(self) -> Self;
 
     fn abs(self) -> Self;
 
@@ -68,6 +69,6 @@ pub trait Real:
     }
 
     fn epsilon() -> Self {
-        Self::from_f64(std::f64::EPSILON)
+        Self::from_f64(f64::EPSILON)
     }
 }

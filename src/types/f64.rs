@@ -1,5 +1,5 @@
-use libm;
 use crate::types::Real;
+use libm;
 
 impl Real for f64 {
     fn from_f64(val: f64) -> Self {
@@ -78,5 +78,9 @@ impl Real for f64 {
 
     fn cos(self) -> Self {
         self.cos()
+    }
+
+    fn acos(self) -> Self {
+        self.acos()
     }
 }

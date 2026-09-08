@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<'a, T, Tr, O, P, Lbc, Ubc> SteppingScheme<T, Tr, O, P, Lbc, Ubc>
+impl<T, Tr, O, P, Lbc, Ubc> SteppingScheme<T, Tr, O, P, Lbc, Ubc>
     for LinearScheme<T, Tr, O, P, Lbc, Ubc>
 where
     T: Real,

@@ -16,13 +16,11 @@ impl<T: Real> SinhTransform<T> {
 
 impl<T: Real> Transform<T> for SinhTransform<T> {
     fn to_transform(&self, physical: T) -> T {
-        // S -> y
         let x = (physical / self.k).ln();
-        (x / self.alpha).asinh() // or (x - shift) / alpha
+        (x / self.alpha).asinh()
     }
 
     fn to_physical(&self, transformed: T) -> T {
-        // y -> S
         self.k * (self.alpha * transformed.sinh()).exp()
     }
 
