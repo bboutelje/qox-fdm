@@ -3,7 +3,6 @@ use crate::types::Real;
 use crate::methods::linear_operators::LinearOperator;
 use std::cell::RefCell;
 
-// Helper to store the factorization results
 struct TridiagonalCache<T> {
     coeff: T,
     a_prime: Vec<T>,
@@ -41,6 +40,22 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
     fn size(&self) -> usize {
         self.diag.len()
     }
+
+    // fn apply_into(&self, v: &[T], out: &mut [T]) {
+    //     let n = self.size();
+
+    //     out[0] = self.upper[0].mul_add(v[1], self.diag[0] * v[0]);
+
+    //     for i in 1..n - 1 {
+    //         out[i] = self.upper[i].mul_add(
+    //             v[i + 1],
+    //             self.lower[i].mul_add(v[i - 1], self.diag[i] * v[i]),
+    //         );
+    //     }
+
+    //     let last = n - 1;
+    //     out[last] = self.lower[last].mul_add(v[last - 1], self.diag[last] * v[last]);
+    // }
 
     fn apply_into(&self, v: &[T], out: &mut [T]) {
         let n = self.size();
@@ -104,16 +119,50 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
         let c = cache_ref
             .as_ref()
             .expect("Cache should be populated by setup_coeff");
-        let n = self.size();
 
-        z_buffer[0] = b[0] * c.m_inv[0];
-        for i in 1..n {
-            z_buffer[i] = (b[i] - c.a_prime[i] * z_buffer[i - 1]) * c.m_inv[i];
+        let a_prime = &c.a_prime;
+        let c_prime = &c.c_prime;
+        let m_inv = &c.m_inv;
+
+        let n = b.len();
+        if n == 0 {
+            return;
         }
 
-        x[n - 1] = z_buffer[n - 1];
-        for i in (0..n - 1).rev() {
-            x[i] = z_buffer[i] - c.c_prime[i] * x[i + 1];
+        // --- Step 1: Forward Substitution (Ly = b) ---
+        let (z_first, z_rest) = z_buffer.split_first_mut().unwrap();
+        let (b_first, b_rest) = b.split_first().unwrap();
+
+        *z_first = *b_first * m_inv[0];
+
+        let mut z_prev = *z_first;
+        for (((z_out, &b_val), &a_val), &m_val) in z_rest
+            .iter_mut()
+            .zip(b_rest)
+            .zip(&a_prime[1..])
+            .zip(&m_inv[1..])
+        {
+            let z_curr = (-a_val).mul_add(z_prev, b_val) * m_val;
+            *z_out = z_curr;
+            z_prev = z_curr;
+        }
+
+        // --- Step 2: Backward Substitution (Ux = z) ---
+        let last_idx = n - 1;
+        x[last_idx] = z_buffer[last_idx];
+
+        if n > 1 {
+            let mut x_next = x[last_idx];
+
+            let x_rev = &mut x[..last_idx];
+            let z_rev = &z_buffer[..last_idx];
+            let c_rev = &c_prime[..last_idx];
+
+            for ((x_out, &z_val), &c_val) in x_rev.iter_mut().zip(z_rev).zip(c_rev).rev() {
+                let x_curr = (-c_val).mul_add(x_next, z_val);
+                *x_out = x_curr;
+                x_next = x_curr;
+            }
         }
     }
 
