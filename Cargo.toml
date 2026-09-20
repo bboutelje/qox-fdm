@@ -11,4 +11,3 @@ readme = "README.md"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 libm = "0.2"
 thiserror = "1"
-wide = "0.7"
