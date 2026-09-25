@@ -43,18 +43,44 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
 
     // fn apply_into(&self, v: &[T], out: &mut [T]) {
     //     let n = self.size();
+    //     if n == 0 {
+    //         return;
+    //     }
 
-    //     out[0] = self.upper[0].mul_add(v[1], self.diag[0] * v[0]);
+    //     // Direct hardware SIMD dispatch for f64 without requiring T: 'static
+    //     #[cfg(target_arch = "x86_64")]
+    //     if std::mem::size_of::<T>() == std::mem::size_of::<f64>()
+    //         && std::mem::align_of::<T>() == std::mem::align_of::<f64>()
+    //     {
+    //         if is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("fma") {
+    //             unsafe {
+    //                 let lower_f64 =
+    //                     std::slice::from_raw_parts(self.lower.as_ptr() as *const f64, n);
+    //                 let diag_f64 = std::slice::from_raw_parts(self.diag.as_ptr() as *const f64, n);
+    //                 let upper_f64 =
+    //                     std::slice::from_raw_parts(self.upper.as_ptr() as *const f64, n);
+    //                 let v_f64 = std::slice::from_raw_parts(v.as_ptr() as *const f64, v.len());
+    //                 let out_f64 =
+    //                     std::slice::from_raw_parts_mut(out.as_mut_ptr() as *mut f64, out.len());
+
+    //                 Self::apply_into_avx512_f64(lower_f64, diag_f64, upper_f64, v_f64, out_f64);
+    //             }
+    //             return;
+    //         }
+    //     }
+
+    //     // Generic fallback path (non-x86 or non-f64 types)
+    //     out[0] = self.diag[0] * v[0] + self.upper[0] * v[1];
 
     //     for i in 1..n - 1 {
-    //         out[i] = self.upper[i].mul_add(
-    //             v[i + 1],
-    //             self.lower[i].mul_add(v[i - 1], self.diag[i] * v[i]),
+    //         out[i] = self.lower[i].mul_add(
+    //             v[i - 1],
+    //             self.diag[i].mul_add(v[i], self.upper[i] * v[i + 1]),
     //         );
     //     }
 
     //     let last = n - 1;
-    //     out[last] = self.lower[last].mul_add(v[last - 1], self.diag[last] * v[last]);
+    //     out[last] = self.lower[last] * v[last - 1] + self.diag[last] * v[last];
     // }
 
     fn apply_into(&self, v: &[T], out: &mut [T]) {
@@ -194,3 +220,75 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
         }
     }
 }
+
+// impl<T: Real> TridiagonalOperator<T> {
+//     #[cfg(target_arch = "x86_64")]
+//     #[target_feature(enable = "avx512f", enable = "fma")]
+//     unsafe fn apply_into_avx512_f64(
+//         lower: &[f64],
+//         diag: &[f64],
+//         upper: &[f64],
+//         v: &[f64],
+//         out: &mut [f64],
+//     ) {
+//         use std::arch::x86_64::*;
+
+//         let n = diag.len();
+//         out[0] = diag[0].mul_add(v[0], upper[0] * v[1]);
+
+//         if n <= 2 {
+//             if n == 2 {
+//                 out[1] = lower[1].mul_add(v[0], diag[1] * v[1]);
+//             }
+//             return;
+//         }
+
+//         let mut i = 1;
+
+//         // Process in batches of 8 x double precision (512-bit registers)
+//         while i + 8 <= n - 1 {
+//             let l_vec = _mm512_loadu_pd(lower.as_ptr().add(i));
+//             let d_vec = _mm512_loadu_pd(diag.as_ptr().add(i));
+//             let u_vec = _mm512_loadu_pd(upper.as_ptr().add(i));
+
+//             let v_prev = _mm512_loadu_pd(v.as_ptr().add(i - 1));
+//             let v_curr = _mm512_loadu_pd(v.as_ptr().add(i));
+//             let v_next = _mm512_loadu_pd(v.as_ptr().add(i + 1));
+
+//             // out = lower * v_prev + diag * v_curr + upper * v_next
+//             let res = _mm512_fmadd_pd(
+//                 l_vec,
+//                 v_prev,
+//                 _mm512_fmadd_pd(d_vec, v_curr, _mm512_mul_pd(u_vec, v_next)),
+//             );
+
+//             _mm512_storeu_pd(out.as_mut_ptr().add(i), res);
+//             i += 8;
+//         }
+
+//         // Masked remainder handling for leftover elements (< 8)
+//         let rem = (n - 1) - i;
+//         if rem > 0 {
+//             let mask: __mmask8 = (1u8 << rem) - 1;
+
+//             let l_vec = _mm512_maskz_loadu_pd(mask, lower.as_ptr().add(i));
+//             let d_vec = _mm512_maskz_loadu_pd(mask, diag.as_ptr().add(i));
+//             let u_vec = _mm512_maskz_loadu_pd(mask, upper.as_ptr().add(i));
+
+//             let v_prev = _mm512_maskz_loadu_pd(mask, v.as_ptr().add(i - 1));
+//             let v_curr = _mm512_maskz_loadu_pd(mask, v.as_ptr().add(i));
+//             let v_next = _mm512_maskz_loadu_pd(mask, v.as_ptr().add(i + 1));
+
+//             let res = _mm512_fmadd_pd(
+//                 l_vec,
+//                 v_prev,
+//                 _mm512_fmadd_pd(d_vec, v_curr, _mm512_mul_pd(u_vec, v_next)),
+//             );
+
+//             _mm512_mask_storeu_pd(out.as_mut_ptr().add(i), mask, res);
+//         }
+
+//         let last = n - 1;
+//         out[last] = lower[last].mul_add(v[last - 1], diag[last] * v[last]);
+//     }
+// }
