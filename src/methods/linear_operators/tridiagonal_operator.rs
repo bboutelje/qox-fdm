@@ -53,17 +53,20 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
             target_feature = "avx512f",
             target_feature = "fma"
         ))]
-        if std::mem::size_of::<T>() == std::mem::size_of::<f64>() {
-            unsafe {
-                let lower = std::slice::from_raw_parts(self.lower.as_ptr() as *const f64, n);
-                let diag = std::slice::from_raw_parts(self.diag.as_ptr() as *const f64, n);
-                let upper = std::slice::from_raw_parts(self.upper.as_ptr() as *const f64, n);
-                let v = std::slice::from_raw_parts(v.as_ptr() as *const f64, v.len());
-                let out = std::slice::from_raw_parts_mut(out.as_mut_ptr() as *mut f64, out.len());
+        {
+            if std::mem::size_of::<T>() == std::mem::size_of::<f64>() {
+                unsafe {
+                    let lower = std::slice::from_raw_parts(self.lower.as_ptr() as *const f64, n);
+                    let diag = std::slice::from_raw_parts(self.diag.as_ptr() as *const f64, n);
+                    let upper = std::slice::from_raw_parts(self.upper.as_ptr() as *const f64, n);
+                    let v = std::slice::from_raw_parts(v.as_ptr() as *const f64, v.len());
+                    let out =
+                        std::slice::from_raw_parts_mut(out.as_mut_ptr() as *mut f64, out.len());
 
-                TridiagonalOperator::<f64>::apply_into_avx512_f64(lower, diag, upper, v, out);
+                    TridiagonalOperator::<f64>::apply_into_avx512_f64(lower, diag, upper, v, out);
+                }
+                return;
             }
-            return;
         }
 
         // --- AVX2 Path (Compile-Time Gated) ---
@@ -72,17 +75,20 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
             target_feature = "avx2",
             target_feature = "fma"
         ))]
-        if std::mem::size_of::<T>() == std::mem::size_of::<f64>() {
-            unsafe {
-                let lower = std::slice::from_raw_parts(self.lower.as_ptr() as *const f64, n);
-                let diag = std::slice::from_raw_parts(self.diag.as_ptr() as *const f64, n);
-                let upper = std::slice::from_raw_parts(self.upper.as_ptr() as *const f64, n);
-                let v = std::slice::from_raw_parts(v.as_ptr() as *const f64, v.len());
-                let out = std::slice::from_raw_parts_mut(out.as_mut_ptr() as *mut f64, out.len());
+        {
+            if std::mem::size_of::<T>() == std::mem::size_of::<f64>() {
+                unsafe {
+                    let lower = std::slice::from_raw_parts(self.lower.as_ptr() as *const f64, n);
+                    let diag = std::slice::from_raw_parts(self.diag.as_ptr() as *const f64, n);
+                    let upper = std::slice::from_raw_parts(self.upper.as_ptr() as *const f64, n);
+                    let v = std::slice::from_raw_parts(v.as_ptr() as *const f64, v.len());
+                    let out =
+                        std::slice::from_raw_parts_mut(out.as_mut_ptr() as *mut f64, out.len());
 
-                TridiagonalOperator::<f64>::apply_into_avx2_f64(lower, diag, upper, v, out);
+                    TridiagonalOperator::<f64>::apply_into_avx2_f64(lower, diag, upper, v, out);
+                }
+                return;
             }
-            return;
         }
 
         out[0] = self.diag[0] * v[0] + self.upper[0] * v[1];
