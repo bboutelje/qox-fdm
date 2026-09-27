@@ -41,8 +41,6 @@ impl<T: Real> LinearOperator<T> for TridiagonalOperator<T> {
         self.diag.len()
     }
 
-    #[cfg(target_arch = "x86_64")]
-
     fn apply_into(&self, v: &[T], out: &mut [T]) {
         let n = self.size();
         if n == 0 {
